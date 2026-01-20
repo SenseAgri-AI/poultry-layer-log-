@@ -1,0 +1,8 @@
+node_modules
+.next
+.env.local
+.env
+.env.*
+.DS_Store
+/data/sheet.json
+poultry-egg-log-8e2b01b8d052.json
