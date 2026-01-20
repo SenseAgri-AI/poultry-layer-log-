@@ -63,7 +63,7 @@ export default function EntryClient() {
   const validate = (entry: Entry) => {
     const errors: string[] = [];
     if (!entry.date) errors.push('Date is required.');
-    const fields: Array<keyof Entry> = [
+    const fields: Array<'small' | 'medium' | 'large' | 'xl' | 'j' | 'damaged' | 'mortality'> = [
       'small',
       'medium',
       'large',
