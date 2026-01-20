@@ -30,6 +30,8 @@ type SeriesKey = (typeof seriesList)[number]['key'];
 type ChartRow = Entry & {
   avgWeight: number;
   quality: number;
+  totalEggs: number;
+  totalWeight: number;
 };
 
 export default function AnalyticsClient() {
@@ -39,6 +41,7 @@ export default function AnalyticsClient() {
   const [rangePreset, setRangePreset] = useState<'7' | '30' | '90' | 'custom'>('30');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [startingHens, setStartingHens] = useState(4400);
   const [series, setSeries] = useState<Record<SeriesKey, boolean>>(() => ({
     mortality: true,
     damaged: true,
@@ -81,11 +84,24 @@ export default function AnalyticsClient() {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [entries, dateRange]);
 
+  const hensByDate = useMemo(() => {
+    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+    let hens = Math.max(startingHens, 0);
+    const map = new Map<string, number>();
+    for (const entry of sorted) {
+      map.set(entry.date, hens);
+      hens = Math.max(hens - entry.mortality, 0);
+    }
+    return map;
+  }, [entries, startingHens]);
+
   const chartData = useMemo<ChartRow[]>(() => {
     return filtered.map((entry) => ({
       ...entry,
       avgWeight: Number(averageEggWeight(entry).toFixed(2)),
-      quality: Number(qualityFromAverage(averageEggWeight(entry)).toFixed(3))
+      quality: Number(qualityFromAverage(averageEggWeight(entry)).toFixed(3)),
+      totalEggs: totalEggs(entry),
+      totalWeight: Number(totalWeight(entry).toFixed(1))
     }));
   }, [filtered]);
 
@@ -97,6 +113,16 @@ export default function AnalyticsClient() {
     const avgWeight = eggs > 0 ? weight / eggs : 0;
     return { eggs, damaged, mortality, avgWeight };
   }, [filtered]);
+
+  const layRate = useMemo(() => {
+    if (startingHens <= 0) return null;
+    const totalHens = filtered.reduce(
+      (sum, entry) => sum + (hensByDate.get(entry.date) ?? startingHens),
+      0
+    );
+    if (totalHens <= 0) return null;
+    return (totals.eggs / totalHens) * 100;
+  }, [startingHens, filtered, hensByDate, totals.eggs]);
 
   const latestQuality = useMemo(() => {
     const latest = [...filtered].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -161,6 +187,21 @@ export default function AnalyticsClient() {
               disabled={rangePreset !== 'custom'}
             />
           </div>
+          <div>
+            <label htmlFor="hens">Starting hens</label>
+            <input
+              id="hens"
+              type="number"
+              min={0}
+              step={1}
+              value={startingHens}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                setStartingHens(Number.isNaN(value) ? 0 : value);
+              }}
+              placeholder="Default 4400"
+            />
+          </div>
         </div>
       </section>
 
@@ -182,6 +223,38 @@ export default function AnalyticsClient() {
             <h3>Avg egg weight</h3>
             <p>{totals.avgWeight.toFixed(1)} g</p>
           </div>
+          <div className="kpi">
+            <h3>Lay rate</h3>
+            <p>{layRate == null ? 'Add hens' : `${layRate.toFixed(1)}%`}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="section chart-card">
+        <h2>Total eggs per day</h2>
+        <div style={{ width: '100%', height: 260 }}>
+          <ResponsiveContainer>
+            <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="totalEggs" stroke="#7d5a2a" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      <section className="section chart-card">
+        <h2>Total egg weight per day</h2>
+        <div style={{ width: '100%', height: 260 }}>
+          <ResponsiveContainer>
+            <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+              <XAxis dataKey="date" />
+              <YAxis unit="g" />
+              <Tooltip />
+              <Line type="monotone" dataKey="totalWeight" stroke="#c38c45" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </section>
 
@@ -236,6 +309,9 @@ export default function AnalyticsClient() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+        <p className="footer-note">
+          Weighted average per egg. This stays steady when the size mix is steady.
+        </p>
       </section>
 
       <section className="section chart-card">
