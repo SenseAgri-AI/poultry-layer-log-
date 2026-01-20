@@ -12,12 +12,10 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import type { Entry } from '@/lib/types';
-import { averageEggWeight, qualityFromAverage, totalEggs, totalWeight } from '@/lib/eggMath';
+import { averageEggWeight, totalEggs, totalWeight } from '@/lib/eggMath';
 import { dateStringDaysAgo, getClientTimezone, todayInTz } from '@/lib/date';
 
 const seriesList = [
-  { key: 'mortality', label: 'Mortality', color: '#b33a3a' },
-  { key: 'damaged', label: 'Damaged', color: '#d8792c' },
   { key: 'small', label: 'Small', color: '#7d5a2a' },
   { key: 'medium', label: 'Medium', color: '#c38c45' },
   { key: 'large', label: 'Large', color: '#2f6f63' },
@@ -29,7 +27,6 @@ type SeriesKey = (typeof seriesList)[number]['key'];
 
 type ChartRow = Entry & {
   avgWeight: number;
-  quality: number;
   totalEggs: number;
   totalWeight: number;
 };
@@ -43,8 +40,6 @@ export default function AnalyticsClient() {
   const [customEnd, setCustomEnd] = useState('');
   const [startingHens, setStartingHens] = useState(4400);
   const [series, setSeries] = useState<Record<SeriesKey, boolean>>(() => ({
-    mortality: true,
-    damaged: true,
     small: true,
     medium: true,
     large: true,
@@ -99,7 +94,6 @@ export default function AnalyticsClient() {
     return filtered.map((entry) => ({
       ...entry,
       avgWeight: Number(averageEggWeight(entry).toFixed(2)),
-      quality: Number(qualityFromAverage(averageEggWeight(entry)).toFixed(3)),
       totalEggs: totalEggs(entry),
       totalWeight: Number(totalWeight(entry).toFixed(1))
     }));
@@ -123,13 +117,6 @@ export default function AnalyticsClient() {
     if (totalHens <= 0) return null;
     return (totals.eggs / totalHens) * 100;
   }, [startingHens, filtered, hensByDate, totals.eggs]);
-
-  const latestQuality = useMemo(() => {
-    const latest = [...filtered].sort((a, b) => b.date.localeCompare(a.date))[0];
-    if (!latest) return null;
-    const avg = averageEggWeight(latest);
-    return qualityFromAverage(avg);
-  }, [filtered]);
 
   return (
     <main>
@@ -245,21 +232,7 @@ export default function AnalyticsClient() {
       </section>
 
       <section className="section chart-card">
-        <h2>Total egg weight per day</h2>
-        <div style={{ width: '100%', height: 260 }}>
-          <ResponsiveContainer>
-            <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
-              <XAxis dataKey="date" />
-              <YAxis unit="g" />
-              <Tooltip />
-              <Line type="monotone" dataKey="totalWeight" stroke="#c38c45" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      <section className="section chart-card">
-        <h2>Time series</h2>
+        <h2>Egg size count per day</h2>
         <div className="chip-row">
           {seriesList.map((item) => (
             <label key={item.key} className="chip" style={{ display: 'flex', gap: '6px' }}>
@@ -298,6 +271,20 @@ export default function AnalyticsClient() {
       </section>
 
       <section className="section chart-card">
+        <h2>Total egg weight per day</h2>
+        <div style={{ width: '100%', height: 260 }}>
+          <ResponsiveContainer>
+            <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+              <XAxis dataKey="date" />
+              <YAxis unit="g" />
+              <Tooltip />
+              <Line type="monotone" dataKey="totalWeight" stroke="#c38c45" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      <section className="section chart-card">
         <h2>Average egg weight over time</h2>
         <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer>
@@ -311,23 +298,6 @@ export default function AnalyticsClient() {
         </div>
         <p className="footer-note">
           Weighted average per egg. This stays steady when the size mix is steady.
-        </p>
-      </section>
-
-      <section className="section chart-card">
-        <h2>Quality score</h2>
-        <div style={{ width: '100%', height: 260 }}>
-          <ResponsiveContainer>
-            <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
-              <XAxis dataKey="date" />
-              <YAxis domain={[0, 1]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="quality" stroke="#144b59" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        <p className="footer-note">
-          Latest quality: {latestQuality ? `${(latestQuality * 100).toFixed(0)}%` : 'No data'}
         </p>
       </section>
     </main>
