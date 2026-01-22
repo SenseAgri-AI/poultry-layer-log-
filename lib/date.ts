@@ -30,3 +30,10 @@ export function dateStringDaysAgo(days: number, timeZone: string): string {
 export function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
+
+export function daysBetween(start: string, end: string): number {
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(`${end}T00:00:00`);
+  const diffMs = endDate.getTime() - startDate.getTime();
+  return Math.floor(diffMs / (24 * 60 * 60 * 1000));
+}

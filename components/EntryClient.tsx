@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import type { Entry } from '@/lib/types';
+import type { Entry, House } from '@/lib/types';
 import { getClientTimezone, todayInTz } from '@/lib/date';
 
-const emptyEntry = (date: string): Entry => ({
+const emptyEntry = (date: string, houseId: string): Entry => ({
   date,
+  houseId,
   small: 0,
   medium: 0,
   large: 0,
@@ -14,21 +15,36 @@ const emptyEntry = (date: string): Entry => ({
   j: 0,
   damaged: 0,
   mortality: 0,
-  notes: ''
+  notes: '',
+  waterPh: null,
+  eggYolkColor: null,
+  avgHenWeightKg: null,
+  waterIntakeMl: null,
+  feedType: '',
+  waterAdditives: ''
 });
+
+const fallbackHouse: House = {
+  id: 'House 1',
+  name: 'House 1',
+  startDate: '',
+  startAgeDays: 0,
+  startingHens: 0
+};
 
 type SyncState = 'idle' | 'saving' | 'success' | 'error';
 
 type LastAction =
   | { type: 'save'; payload: Entry; resetAfter: boolean }
-  | { type: 'delete'; payload: { date: string } };
+  | { type: 'delete'; payload: { date: string; houseId: string } };
 
 export default function EntryClient() {
   const timezone = getClientTimezone();
-  const [form, setForm] = useState<Entry>(() => emptyEntry(todayInTz(timezone)));
+  const [form, setForm] = useState<Entry>(() => emptyEntry(todayInTz(timezone), 'House 1'));
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [houses, setHouses] = useState<House[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingDate, setEditingDate] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [status, setStatus] = useState<{ state: SyncState; message: string }>({
     state: 'idle',
     message: ''
@@ -36,8 +52,11 @@ export default function EntryClient() {
   const [lastAction, setLastAction] = useState<LastAction | null>(null);
 
   const recentEntries = useMemo(() => {
-    return [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
-  }, [entries]);
+    return [...entries]
+      .filter((entry) => entry.houseId === form.houseId)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 14);
+  }, [entries, form.houseId]);
 
   const fetchEntries = async () => {
     setLoading(true);
@@ -60,9 +79,30 @@ export default function EntryClient() {
     fetchEntries();
   }, []);
 
+  useEffect(() => {
+    const fetchHouses = async () => {
+      try {
+        const res = await fetch('/api/houses');
+        const data = (await res.json()) as { houses?: House[] };
+        setHouses(data.houses ?? []);
+      } catch {
+        setHouses([]);
+      }
+    };
+    fetchHouses();
+  }, []);
+
+  useEffect(() => {
+    if (houses.length === 0) return;
+    if (!houses.some((house) => house.id === form.houseId)) {
+      setForm((prev) => ({ ...prev, houseId: houses[0].id }));
+    }
+  }, [houses, form.houseId]);
+
   const validate = (entry: Entry) => {
     const errors: string[] = [];
     if (!entry.date) errors.push('Date is required.');
+    if (!entry.houseId) errors.push('House is required.');
     const fields: Array<'small' | 'medium' | 'large' | 'xl' | 'j' | 'damaged' | 'mortality'> = [
       'small',
       'medium',
@@ -76,6 +116,16 @@ export default function EntryClient() {
       const value = entry[field];
       if (!Number.isInteger(value) || value < 0) {
         errors.push(`${field} must be an integer >= 0.`);
+      }
+    });
+    const optionalFields: Array<
+      'waterPh' | 'eggYolkColor' | 'avgHenWeightKg' | 'waterIntakeMl'
+    > = ['waterPh', 'eggYolkColor', 'avgHenWeightKg', 'waterIntakeMl'];
+    optionalFields.forEach((field) => {
+      const value = entry[field];
+      if (value == null) return;
+      if (Number.isNaN(value) || value < 0) {
+        errors.push(`${field} must be a number >= 0.`);
       }
     });
     return errors;
@@ -93,9 +143,9 @@ export default function EntryClient() {
         const data = (await res.json()) as { error?: string };
         if (!res.ok) throw new Error(data.error || 'Save failed');
         await fetchEntries();
-        setEditingDate(null);
+        setEditingKey(null);
         if (action.resetAfter) {
-          setForm(emptyEntry(todayInTz(timezone)));
+          setForm(emptyEntry(todayInTz(timezone), action.payload.houseId));
         }
         setStatus({ state: 'success', message: 'Saved ✅ Synced to Google Sheet ✅' });
       } catch (error) {
@@ -110,7 +160,10 @@ export default function EntryClient() {
 
     setStatus({ state: 'saving', message: 'Deleting...' });
     try {
-      const res = await fetch(`/api/entries?date=${encodeURIComponent(action.payload.date)}`,
+      const res = await fetch(
+        `/api/entries?date=${encodeURIComponent(action.payload.date)}&house=${encodeURIComponent(
+          action.payload.houseId
+        )}`,
         { method: 'DELETE' }
       );
       const data = (await res.json()) as { error?: string };
@@ -133,8 +186,11 @@ export default function EntryClient() {
       return;
     }
 
-    const existing = entries.find((entry) => entry.date === form.date);
-    if (existing && editingDate !== form.date) {
+    const existing = entries.find(
+      (entry) => entry.date === form.date && entry.houseId === form.houseId
+    );
+    const currentKey = `${form.date}|${form.houseId}`;
+    if (existing && editingKey !== currentKey) {
       const ok = window.confirm('Update existing record?');
       if (!ok) return;
     }
@@ -144,10 +200,10 @@ export default function EntryClient() {
     await runAction(action);
   };
 
-  const handleDelete = async (date: string) => {
+  const handleDelete = async (date: string, houseId: string) => {
     const ok = window.confirm('Delete this entry?');
     if (!ok) return;
-    const action: LastAction = { type: 'delete', payload: { date } };
+    const action: LastAction = { type: 'delete', payload: { date, houseId } };
     setLastAction(action);
     await runAction(action);
   };
@@ -161,15 +217,28 @@ export default function EntryClient() {
     setForm((prev) => ({ ...prev, [key]: parsed }));
   };
 
+  const setOptionalNumberField = (
+    key: 'waterPh' | 'eggYolkColor' | 'avgHenWeightKg' | 'waterIntakeMl',
+    value: string
+  ) => {
+    if (value.trim() === '') {
+      setForm((prev) => ({ ...prev, [key]: null }));
+      return;
+    }
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return;
+    setForm((prev) => ({ ...prev, [key]: parsed }));
+  };
+
   const handleEdit = (entry: Entry) => {
     setForm(entry);
-    setEditingDate(entry.date);
+    setEditingKey(`${entry.date}|${entry.houseId}`);
     setStatus({ state: 'idle', message: '' });
   };
 
   const resetForm = () => {
-    setForm(emptyEntry(todayInTz(timezone)));
-    setEditingDate(null);
+    setForm(emptyEntry(todayInTz(timezone), form.houseId));
+    setEditingKey(null);
     setStatus({ state: 'idle', message: '' });
   };
 
@@ -184,8 +253,25 @@ export default function EntryClient() {
       </header>
 
       <section className="card">
-        <h2>{editingDate ? `Editing ${editingDate}` : 'Log today\'s numbers'}</h2>
+        <h2>{editingKey ? `Editing ${form.date}` : 'Log today\'s numbers'}</h2>
         <div className="form-grid">
+          <div>
+            <label htmlFor="house">House</label>
+            <select
+              id="house"
+              value={form.houseId}
+              onChange={(event) => setForm((prev) => ({ ...prev, houseId: event.target.value }))}
+            >
+              {(houses.length ? houses : [fallbackHouse]).map((house) => (
+                <option key={house.id} value={house.id}>
+                  {house.name}
+                </option>
+              ))}
+            </select>
+            {houses.length === 0 ? (
+              <p className="helper-text">Add houses from the Home page.</p>
+            ) : null}
+          </div>
           <div>
             <label htmlFor="date">Date</label>
             <input
@@ -282,6 +368,75 @@ export default function EntryClient() {
               placeholder="Feed changes, flock issues, weather notes..."
             />
           </div>
+          <div style={{ gridColumn: '1 / -1', marginTop: '6px' }}>
+            <strong className="section-title">Optional daily checks</strong>
+          </div>
+          <div>
+            <label htmlFor="waterPh">Water pH</label>
+            <input
+              id="waterPh"
+              type="number"
+              step={0.1}
+              value={form.waterPh ?? ''}
+              onChange={(event) => setOptionalNumberField('waterPh', event.target.value)}
+              placeholder="e.g. 6.5"
+            />
+          </div>
+          <div>
+            <label htmlFor="eggYolkColor">Egg yolk color</label>
+            <input
+              id="eggYolkColor"
+              type="number"
+              step={0.1}
+              value={form.eggYolkColor ?? ''}
+              onChange={(event) => setOptionalNumberField('eggYolkColor', event.target.value)}
+              placeholder="e.g. 10"
+            />
+          </div>
+          <div>
+            <label htmlFor="avgHenWeightKg">Avg hen weight (kg)</label>
+            <input
+              id="avgHenWeightKg"
+              type="number"
+              step={0.01}
+              value={form.avgHenWeightKg ?? ''}
+              onChange={(event) => setOptionalNumberField('avgHenWeightKg', event.target.value)}
+              placeholder="e.g. 1.8"
+            />
+          </div>
+          <div>
+            <label htmlFor="waterIntakeMl">Water intake (ml/hen)</label>
+            <input
+              id="waterIntakeMl"
+              type="number"
+              step={1}
+              value={form.waterIntakeMl ?? ''}
+              onChange={(event) => setOptionalNumberField('waterIntakeMl', event.target.value)}
+              placeholder="e.g. 200"
+            />
+          </div>
+          <div>
+            <label htmlFor="feedType">Feed type added</label>
+            <input
+              id="feedType"
+              type="text"
+              value={form.feedType}
+              onChange={(event) => setForm((prev) => ({ ...prev, feedType: event.target.value }))}
+              placeholder="e.g. Layer mash"
+            />
+          </div>
+          <div>
+            <label htmlFor="waterAdditives">Water additives (meds/vitamins)</label>
+            <input
+              id="waterAdditives"
+              type="text"
+              value={form.waterAdditives}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, waterAdditives: event.target.value }))
+              }
+              placeholder="e.g. Vitamins, antibiotics"
+            />
+          </div>
         </div>
         <div className="actions">
           <button className="primary" onClick={() => handleSave(false)}>
@@ -315,7 +470,7 @@ export default function EntryClient() {
       </section>
 
       <section className="section card">
-        <h2>Last 14 days</h2>
+        <h2>Last 14 days {form.houseId ? `(${form.houseId})` : ''}</h2>
         {loading ? (
           <p>Loading entries...</p>
         ) : recentEntries.length === 0 ? (
@@ -326,6 +481,7 @@ export default function EntryClient() {
               <thead>
                 <tr>
                   <th>Date</th>
+                  <th>House</th>
                   <th>S</th>
                   <th>M</th>
                   <th>L</th>
@@ -339,8 +495,9 @@ export default function EntryClient() {
               </thead>
               <tbody>
                 {recentEntries.map((entry) => (
-                  <tr key={entry.date}>
+                  <tr key={`${entry.date}-${entry.houseId}`}>
                     <td>{entry.date}</td>
+                    <td>{entry.houseId}</td>
                     <td>{entry.small}</td>
                     <td>{entry.medium}</td>
                     <td>{entry.large}</td>
@@ -354,7 +511,10 @@ export default function EntryClient() {
                         <button className="secondary" onClick={() => handleEdit(entry)}>
                           Edit
                         </button>
-                        <button className="danger" onClick={() => handleDelete(entry.date)}>
+                        <button
+                          className="danger"
+                          onClick={() => handleDelete(entry.date, entry.houseId)}
+                        >
                           Delete
                         </button>
                       </div>

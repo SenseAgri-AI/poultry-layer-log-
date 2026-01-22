@@ -31,11 +31,15 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
+    const houseId = searchParams.get('house');
     if (!date || !isIsoDate(date)) {
       return NextResponse.json({ error: 'Valid date is required' }, { status: 400 });
     }
+    if (!houseId) {
+      return NextResponse.json({ error: 'House is required' }, { status: 400 });
+    }
 
-    await deleteEntry(date);
+    await deleteEntry(date, houseId);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete entry';

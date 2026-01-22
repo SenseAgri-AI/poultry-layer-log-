@@ -4,8 +4,10 @@ A mobile-first Next.js app for logging daily poultry layer numbers. Data is stor
 
 ## Features
 - Fast daily entry with validation and duplicate-date prompts.
+- Optional daily checks for water pH, yolk color, hen weight, water intake, feed type, and water additives.
 - Google Sheets + Drive sync with idempotent sheet creation.
 - Analytics dashboard with KPI cards and time-series charts.
+- Multi-house setup with cycle start details and standard HDEP target line.
 - Basic tests for egg weight and quality calculations.
 
 ## Setup
@@ -51,8 +53,10 @@ Open `http://localhost:3000`.
 - Spreadsheet title: **Poultry Daily Log**
 - Sheet tab: **DailyLog**
 - Header row:
-  `Date | Small | Medium | Large | XL | J | Damaged | Mortality | Notes`
+  `Date | House | Small | Medium | Large | XL | J | Damaged | Mortality | Notes | Water pH | Egg Yolk Color | Avg Hen Weight (kg) | Water Intake (ml) | Feed Type | Water Additives`
 - Dates stored as `YYYY-MM-DD` strings.
+- Houses are stored in a separate tab: **Houses**
+  `House ID | Name | Start Date | Start Age (days) | Starting Hens`
 
 ## Tests
 ```

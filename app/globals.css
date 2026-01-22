@@ -116,6 +116,19 @@ label {
   margin-bottom: 6px;
 }
 
+.helper-text {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.section-title {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
 input,
 textarea,
 select {
@@ -264,4 +277,20 @@ button.danger {
   .hero h1 {
     font-size: 1.7rem;
   }
+}
+
+.metric-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.daily-kpi {
+  border: 2px solid var(--accent);
+  background: #fff0de;
+}
+
+.daily-kpi h2 {
+  font-size: 1.4rem;
 }
