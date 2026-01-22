@@ -30,12 +30,15 @@ GOOGLE_DRIVE_FOLDER_ID=1iJlirSU4h0C-xADAl8ZnAF94yinnYFYU
 GOOGLE_SHEET_ID=
 TIMEZONE=Africa/Johannesburg
 NEXT_PUBLIC_TIMEZONE=Africa/Johannesburg
+APP_AUTH_USER=your-username
+APP_AUTH_PASS=your-password
 ```
 
 Notes:
 - `GOOGLE_SERVICE_ACCOUNT_JSON` can be a **stringified JSON** or a **path** to the JSON file.
 - If `GOOGLE_SHEET_ID` is missing, the app will look for a spreadsheet named **“Poultry Daily Log”** inside the Drive folder. If not found, it will create one and store the ID in `data/sheet.json`.
 - For serverless deployments (like Vercel), set `GOOGLE_SHEET_ID` so the ID is not stored on disk.
+- `APP_AUTH_USER` and `APP_AUTH_PASS` enable the basic password gate.
 
 ### 3) Install + run
 ```
