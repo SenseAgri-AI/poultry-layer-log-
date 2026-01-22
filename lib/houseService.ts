@@ -250,3 +250,31 @@ export async function upsertHouse(house: House): Promise<House> {
   invalidateCache();
   return house;
 }
+
+export async function archiveHouse(id: string): Promise<House | null> {
+  const { sheets, spreadsheetId } = await getSheetContext();
+  const houses = await listHousesWithRows();
+  const existing = houses.find((row) => row.id === id);
+  if (!existing) return null;
+
+  const suffix = '-archive';
+  const name = existing.name.endsWith(suffix) ? existing.name : `${existing.name}${suffix}`;
+  const updated: House = {
+    id: existing.id,
+    name,
+    startDate: existing.startDate,
+    startAgeDays: existing.startAgeDays,
+    startingHens: existing.startingHens
+  };
+
+  const range = `${HOUSES_SHEET_NAME}!A${existing.rowNumber}:E${existing.rowNumber}`;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: 'RAW',
+    requestBody: { values: [toRow(updated)] }
+  });
+
+  invalidateCache();
+  return updated;
+}

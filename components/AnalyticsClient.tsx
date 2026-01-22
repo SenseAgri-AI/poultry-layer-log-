@@ -135,8 +135,10 @@ export default function AnalyticsClient() {
 
   useEffect(() => {
     if (houses.length === 0) return;
-    if (!houses.some((house) => house.id === selectedHouseId)) {
-      setSelectedHouseId(houses[0].id);
+    const active = houses.filter((house) => !house.name.toLowerCase().endsWith('-archive'));
+    if (active.length === 0) return;
+    if (!active.some((house) => house.id === selectedHouseId)) {
+      setSelectedHouseId(active[0].id);
     }
   }, [houses, selectedHouseId]);
 
@@ -388,11 +390,17 @@ export default function AnalyticsClient() {
               value={selectedHouseId}
               onChange={(event) => setSelectedHouseId(event.target.value)}
             >
-              {(houses.length ? houses : [fallbackHouse]).map((house) => (
-                <option key={house.id} value={house.id}>
-                  {house.name}
-                </option>
-              ))}
+              {(() => {
+                const active = houses.filter(
+                  (house) => !house.name.toLowerCase().endsWith('-archive')
+                );
+                const options = active.length ? active : [fallbackHouse];
+                return options.map((house) => (
+                  <option key={house.id} value={house.id}>
+                    {house.name}
+                  </option>
+                ));
+              })()}
             </select>
           </div>
           <div>

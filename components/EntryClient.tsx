@@ -94,8 +94,10 @@ export default function EntryClient() {
 
   useEffect(() => {
     if (houses.length === 0) return;
-    if (!houses.some((house) => house.id === form.houseId)) {
-      setForm((prev) => ({ ...prev, houseId: houses[0].id }));
+    const active = houses.filter((house) => !house.name.toLowerCase().endsWith('-archive'));
+    if (active.length === 0) return;
+    if (!active.some((house) => house.id === form.houseId)) {
+      setForm((prev) => ({ ...prev, houseId: active[0].id }));
     }
   }, [houses, form.houseId]);
 
@@ -262,13 +264,20 @@ export default function EntryClient() {
               value={form.houseId}
               onChange={(event) => setForm((prev) => ({ ...prev, houseId: event.target.value }))}
             >
-              {(houses.length ? houses : [fallbackHouse]).map((house) => (
-                <option key={house.id} value={house.id}>
-                  {house.name}
-                </option>
-              ))}
+              {(() => {
+                const active = houses.filter(
+                  (house) => !house.name.toLowerCase().endsWith('-archive')
+                );
+                const options = active.length ? active : [fallbackHouse];
+                return options.map((house) => (
+                  <option key={house.id} value={house.id}>
+                    {house.name}
+                  </option>
+                ));
+              })()}
             </select>
-            {houses.length === 0 ? (
+            {houses.filter((house) => !house.name.toLowerCase().endsWith('-archive')).length ===
+            0 ? (
               <p className="helper-text">Add houses from the Home page.</p>
             ) : null}
           </div>

@@ -22,6 +22,7 @@ export default function HomeClient() {
   const timezone = getClientTimezone();
   const [houses, setHouses] = useState<House[]>([]);
   const [form, setForm] = useState<House>(() => emptyHouse(todayInTz(timezone)));
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ state: SyncState; message: string }>({
     state: 'idle',
     message: ''
@@ -42,7 +43,9 @@ export default function HomeClient() {
   }, []);
 
   const sortedHouses = useMemo(() => {
-    return [...houses].sort((a, b) => a.name.localeCompare(b.name));
+    return [...houses]
+      .filter((house) => !house.name.toLowerCase().endsWith('-archive'))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [houses]);
 
   const handleSave = async () => {
@@ -65,6 +68,7 @@ export default function HomeClient() {
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || 'Save failed');
       await fetchHouses();
+      setEditingId(payload.id);
       setStatus({ state: 'success', message: 'House saved ✅' });
     } catch (error) {
       setStatus({
@@ -76,12 +80,46 @@ export default function HomeClient() {
 
   const handleEdit = (house: House) => {
     setForm(house);
+    setEditingId(house.id);
     setStatus({ state: 'idle', message: '' });
   };
 
   const handleReset = () => {
     setForm(emptyHouse(todayInTz(timezone)));
+    setEditingId(null);
     setStatus({ state: 'idle', message: '' });
+  };
+
+  const handleArchive = async () => {
+    if (!editingId) return;
+    const ok = window.confirm(
+      'Archive this house? It will be renamed with -archive and kept for history.'
+    );
+    if (!ok) return;
+    const username = window.prompt('Enter username');
+    if (!username) return;
+    const password = window.prompt('Enter password');
+    if (!password) return;
+
+    setStatus({ state: 'saving', message: 'Archiving...' });
+    try {
+      const res = await fetch('/api/houses/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingId, username, password })
+      });
+      const data = (await res.json()) as { error?: string; house?: House };
+      if (!res.ok) throw new Error(data.error || 'Archive failed');
+      await fetchHouses();
+      setForm(emptyHouse(todayInTz(timezone)));
+      setEditingId(null);
+      setStatus({ state: 'success', message: 'House archived ✅' });
+    } catch (error) {
+      setStatus({
+        state: 'error',
+        message: error instanceof Error ? error.message : 'Archive failed'
+      });
+    }
   };
 
   return (
@@ -167,6 +205,11 @@ export default function HomeClient() {
           <button className="primary" onClick={handleSave}>
             Save house
           </button>
+          {editingId ? (
+            <button className="danger" onClick={handleArchive}>
+              Archive house
+            </button>
+          ) : null}
           <button className="ghost" onClick={handleReset}>
             New house
           </button>
