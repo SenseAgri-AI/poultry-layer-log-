@@ -49,6 +49,22 @@ function movingAverage(values: number[], window: number): number[] {
   return result;
 }
 
+function getPaddedDomain(
+  values: number[],
+  minPad = 1,
+  pct = 0.08,
+  clampZero = true
+): [number, number] | undefined {
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (finite.length === 0) return undefined;
+  const min = Math.min(...finite);
+  const max = Math.max(...finite);
+  const range = max - min;
+  const pad = Math.max(range * pct, minPad);
+  const lower = clampZero ? Math.max(0, min - pad) : min - pad;
+  return [lower, max + pad];
+}
+
 type SeriesKey = (typeof seriesList)[number]['key'];
 
 type ChartRow = Entry & {
@@ -64,6 +80,10 @@ type ChartRow = Entry & {
   hdepAvg7: number;
   hhepAvg7: number;
   standardHdep: number | null;
+  eggsLower: number;
+  eggsGap: number;
+  saleableLower: number;
+  saleableGap: number;
 };
 
 export default function AnalyticsClient() {
@@ -229,13 +249,47 @@ export default function AnalyticsClient() {
       7
     );
 
-    return rows.map((row, index) => ({
-      ...row,
-      totalEggsAvg7: Number(eggsAvg[index].toFixed(1)),
-      hdepAvg7: Number(hdepAvg[index].toFixed(2)),
-      hhepAvg7: Number(hhepAvg[index].toFixed(2))
-    }));
+    return rows.map((row, index) => {
+      const avgEggs = Number(eggsAvg[index].toFixed(1));
+      const avgHdep = Number(hdepAvg[index].toFixed(2));
+      const avgHhep = Number(hhepAvg[index].toFixed(2));
+      return {
+        ...row,
+        totalEggsAvg7: avgEggs,
+        hdepAvg7: avgHdep,
+        hhepAvg7: avgHhep,
+        eggsLower: Math.min(row.totalEggs, avgEggs),
+        eggsGap: Math.abs(row.totalEggs - avgEggs),
+        saleableLower: Math.min(row.totalEggs, row.saleableEggs),
+        saleableGap: Math.abs(row.totalEggs - row.saleableEggs)
+      };
+    });
   }, [filtered, hensByDate, startingHens, startAgeDays, startDate]);
+
+  const eggsDomain = useMemo(
+    () =>
+      getPaddedDomain(
+        chartData.flatMap((row) => [row.totalEggs, row.totalEggsAvg7]),
+        50,
+        0.08
+      ),
+    [chartData]
+  );
+
+  const weightDomain = useMemo(
+    () => getPaddedDomain(chartData.map((row) => row.totalWeight), 500, 0.08),
+    [chartData]
+  );
+
+  const saleableDomain = useMemo(
+    () =>
+      getPaddedDomain(
+        chartData.flatMap((row) => [row.totalEggs, row.saleableEggs]),
+        50,
+        0.08
+      ),
+    [chartData]
+  );
 
   const targetEggsValue = useMemo(() => {
     const value = Number(targetEggs);
@@ -433,14 +487,14 @@ export default function AnalyticsClient() {
           <ResponsiveContainer>
             <ComposedChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
               <defs>
-                <linearGradient id="eggsFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#7d5a2a" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#7d5a2a" stopOpacity={0.05} />
+                <linearGradient id="eggsBandFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="10%" stopColor="#7d5a2a" stopOpacity={0.28} />
+                  <stop offset="90%" stopColor="#7d5a2a" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="date" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" unit="g" />
+              <YAxis yAxisId="left" domain={eggsDomain} />
+              <YAxis yAxisId="right" orientation="right" unit="g" domain={weightDomain} />
               <Tooltip />
               <Legend />
               {targetEggsValue != null ? (
@@ -455,10 +509,27 @@ export default function AnalyticsClient() {
               <Area
                 yAxisId="left"
                 type="monotone"
+                dataKey="eggsLower"
+                stackId="eggsBand"
+                stroke="none"
+                fill="transparent"
+                legendType="none"
+              />
+              <Area
+                yAxisId="left"
+                type="monotone"
+                dataKey="eggsGap"
+                stackId="eggsBand"
+                stroke="none"
+                fill="url(#eggsBandFill)"
+                legendType="none"
+              />
+              <Line
+                yAxisId="left"
+                type="monotone"
                 dataKey="totalEggs"
                 name="Total eggs"
                 stroke="#7d5a2a"
-                fill="url(#eggsFill)"
                 strokeWidth={2}
                 dot={false}
               />
@@ -490,9 +561,15 @@ export default function AnalyticsClient() {
         <h2 className="metric-title">Saleable vs total eggs</h2>
         <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer>
-            <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+            <ComposedChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+              <defs>
+                <linearGradient id="saleableBandFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="10%" stopColor="#2f6f63" stopOpacity={0.25} />
+                  <stop offset="90%" stopColor="#2f6f63" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
               <XAxis dataKey="date" />
-              <YAxis />
+              <YAxis domain={saleableDomain} />
               <Tooltip />
               <Legend />
               {targetSaleableValue != null ? (
@@ -503,6 +580,22 @@ export default function AnalyticsClient() {
                   label="Saleable target"
                 />
               ) : null}
+              <Area
+                type="monotone"
+                dataKey="saleableLower"
+                stackId="saleableBand"
+                stroke="none"
+                fill="transparent"
+                legendType="none"
+              />
+              <Area
+                type="monotone"
+                dataKey="saleableGap"
+                stackId="saleableBand"
+                stroke="none"
+                fill="url(#saleableBandFill)"
+                legendType="none"
+              />
               <Line
                 type="monotone"
                 dataKey="totalEggs"
@@ -519,7 +612,7 @@ export default function AnalyticsClient() {
                 strokeWidth={2}
                 dot={false}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </section>
