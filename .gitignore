@@ -5,4 +5,6 @@ node_modules
 .env.*
 .DS_Store
 /data/sheet.json
-poultry-egg-log-8e2b01b8d052.json
+poultry-egg-log-*.json
+.vercel
+.env*.local
