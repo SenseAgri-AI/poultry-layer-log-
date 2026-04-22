@@ -17,7 +17,7 @@ import {
 import type { Entry, House } from '@/lib/types';
 import { averageEggWeight, totalEggs, totalWeight } from '@/lib/eggMath';
 import { dateStringDaysAgo, daysBetween, getClientTimezone, todayInTz } from '@/lib/date';
-import { standardHdepForWeek } from '@/lib/henStandard';
+import { standardHdepForWeek, standardCumulativeMortalityForWeek } from '@/lib/henStandard';
 
 const seriesList = [
   { key: 'small', label: 'Small', color: '#7d5a2a' },
@@ -80,6 +80,8 @@ type ChartRow = Entry & {
   hdepAvg7: number;
   hhepAvg7: number;
   standardHdep: number | null;
+  cumulativeMortality: number;
+  standardCumulativeMortality: number | null;
   eggsLower: number;
   eggsGap: number;
   saleableLower: number;
@@ -183,6 +185,17 @@ export default function AnalyticsClient() {
     return map;
   }, [houseEntries, startingHens]);
 
+  const cumulativeMortalityByDate = useMemo(() => {
+    const sorted = [...houseEntries].sort((a, b) => a.date.localeCompare(b.date));
+    let totalDeaths = 0;
+    const map = new Map<string, number>();
+    for (const entry of sorted) {
+      totalDeaths += entry.mortality;
+      map.set(entry.date, startingHens > 0 ? (totalDeaths / startingHens) * 100 : 0);
+    }
+    return map;
+  }, [houseEntries, startingHens]);
+
   const currentAlive = useMemo(() => {
     const sorted = [...houseEntries].sort((a, b) => a.date.localeCompare(b.date));
     let hens = Math.max(startingHens, 0);
@@ -217,9 +230,11 @@ export default function AnalyticsClient() {
       const eggsToday = totalEggs(entry);
       const saleableEggs = Math.max(eggsToday - entry.damaged, 0);
       let standardHdep: number | null = null;
+      let standardCumulativeMortality: number | null = null;
       if (startDate) {
         const ageWeeks = (startAgeDays + daysBetween(startDate, entry.date)) / 7;
         standardHdep = standardHdepForWeek(ageWeeks);
+        standardCumulativeMortality = standardCumulativeMortalityForWeek(ageWeeks);
       }
       return {
         ...entry,
@@ -231,6 +246,8 @@ export default function AnalyticsClient() {
         hdep: liveHens > 0 ? (eggsToday / liveHens) * 100 : 0,
         hhep: startingHens > 0 ? (eggsToday / startingHens) * 100 : 0,
         dailyMortalityRate: liveHens > 0 ? (entry.mortality / liveHens) * 100 : 0,
+        cumulativeMortality: Number((cumulativeMortalityByDate.get(entry.date) ?? 0).toFixed(2)),
+        standardCumulativeMortality: standardCumulativeMortality !== null ? Number(standardCumulativeMortality.toFixed(2)) : null,
         totalEggsAvg7: 0,
         hdepAvg7: 0,
         hhepAvg7: 0,
@@ -266,7 +283,7 @@ export default function AnalyticsClient() {
         saleableGap: Math.abs(row.totalEggs - row.saleableEggs)
       };
     });
-  }, [filtered, hensByDate, startingHens, startAgeDays, startDate]);
+  }, [filtered, hensByDate, cumulativeMortalityByDate, startingHens, startAgeDays, startDate]);
 
   const eggsDomain = useMemo(
     () =>
@@ -711,6 +728,41 @@ export default function AnalyticsClient() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      </section>
+
+      <section className="section chart-card">
+        <h2 className="metric-title">Cumulative mortality %</h2>
+        <div style={{ width: '100%', height: 260 }}>
+          <ResponsiveContainer>
+            <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+              <XAxis dataKey="date" />
+              <YAxis unit="%" tickFormatter={(v) => `${v}`} />
+              <Tooltip formatter={(value: number) => `${value.toFixed(2)}%`} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="cumulativeMortality"
+                name="Actual cumulative mortality %"
+                stroke="#D4AF37"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="standardCumulativeMortality"
+                name="Standard cumulative mortality %"
+                stroke="#E05252"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="footer-note">
+          Cumulative deaths as % of starting flock. Actual above the standard line indicates higher than expected mortality.
+        </p>
       </section>
 
       <section className="section chart-card">
