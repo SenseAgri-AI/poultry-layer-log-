@@ -298,7 +298,8 @@ export default function EntryClient() {
               type="number"
               min={0}
               step={1}
-              value={form.small}
+              value={form.small === 0 ? '' : form.small}
+              placeholder="0"
               onChange={(event) => setNumberField('small', event.target.value)}
             />
           </div>
@@ -309,7 +310,8 @@ export default function EntryClient() {
               type="number"
               min={0}
               step={1}
-              value={form.medium}
+              value={form.medium === 0 ? '' : form.medium}
+              placeholder="0"
               onChange={(event) => setNumberField('medium', event.target.value)}
             />
           </div>
@@ -320,7 +322,8 @@ export default function EntryClient() {
               type="number"
               min={0}
               step={1}
-              value={form.large}
+              value={form.large === 0 ? '' : form.large}
+              placeholder="0"
               onChange={(event) => setNumberField('large', event.target.value)}
             />
           </div>
@@ -331,7 +334,8 @@ export default function EntryClient() {
               type="number"
               min={0}
               step={1}
-              value={form.xl}
+              value={form.xl === 0 ? '' : form.xl}
+              placeholder="0"
               onChange={(event) => setNumberField('xl', event.target.value)}
             />
           </div>
@@ -342,7 +346,8 @@ export default function EntryClient() {
               type="number"
               min={0}
               step={1}
-              value={form.j}
+              value={form.j === 0 ? '' : form.j}
+              placeholder="0"
               onChange={(event) => setNumberField('j', event.target.value)}
             />
           </div>
@@ -353,7 +358,8 @@ export default function EntryClient() {
               type="number"
               min={0}
               step={1}
-              value={form.damaged}
+              value={form.damaged === 0 ? '' : form.damaged}
+              placeholder="0"
               onChange={(event) => setNumberField('damaged', event.target.value)}
             />
           </div>
@@ -364,7 +370,8 @@ export default function EntryClient() {
               type="number"
               min={0}
               step={1}
-              value={form.mortality}
+              value={form.mortality === 0 ? '' : form.mortality}
+              placeholder="0"
               onChange={(event) => setNumberField('mortality', event.target.value)}
             />
           </div>
