@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deleteEntry, listEntries, upsertEntry } from '@/lib/sheetService';
+import { deletePriceForDate } from '@/lib/pricesService';
 import { normalizeEntry } from '@/lib/validate';
 import { isIsoDate } from '@/lib/date';
 
@@ -40,6 +41,7 @@ export async function DELETE(request: Request) {
     }
 
     await deleteEntry(date, houseId);
+    await deletePriceForDate(date);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete entry';

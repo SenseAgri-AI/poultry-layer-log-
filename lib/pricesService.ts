@@ -5,9 +5,12 @@ import { readSheetConfig, writeSheetConfig } from '@/lib/sheetConfig';
 import { DRIVE_FOLDER_ID, PRICES_SHEET_NAME, PRICES_HEADER_ROW, SHEET_TITLE } from '@/lib/serverConfig';
 import type { Price } from '@/lib/types';
 
+type PriceWithRow = Price & { rowNumber: number };
+
 const CACHE_TTL_MS = 15_000;
-let pricesCache: { prices: Price[]; fetchedAt: number } | null = null;
+let pricesCache: { prices: PriceWithRow[]; fetchedAt: number } | null = null;
 let cachedSpreadsheetId: string | null = null;
+let cachedPricesTabId: number | null = null;
 
 async function getClients() {
   const auth = getGoogleAuth();
@@ -52,15 +55,18 @@ async function resolveSpreadsheetId(sheets: sheets_v4.Sheets, drive: drive_v3.Dr
   return spreadsheetId;
 }
 
-async function ensurePricesSheet(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<void> {
+async function ensurePricesSheet(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<number> {
   const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' });
   const existing = meta.data.sheets?.find((s) => s.properties?.title === PRICES_SHEET_NAME);
 
   if (!existing) {
-    await sheets.spreadsheets.batchUpdate({
+    const created = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: { requests: [{ addSheet: { properties: { title: PRICES_SHEET_NAME } } }] }
     });
+    cachedPricesTabId = created.data.replies?.[0]?.addSheet?.properties?.sheetId ?? null;
+  } else if (cachedPricesTabId == null) {
+    cachedPricesTabId = existing.properties?.sheetId ?? null;
   }
 
   const res = await sheets.spreadsheets.values.get({
@@ -68,24 +74,26 @@ async function ensurePricesSheet(sheets: sheets_v4.Sheets, spreadsheetId: string
     range: `${PRICES_SHEET_NAME}!1:1`
   });
   const current = res.data.values?.[0] ?? [];
-  if (current.join('|') === PRICES_HEADER_ROW.join('|')) return;
+  if (current.join('|') !== PRICES_HEADER_ROW.join('|')) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${PRICES_SHEET_NAME}!1:1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [PRICES_HEADER_ROW] }
+    });
+  }
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `${PRICES_SHEET_NAME}!1:1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [PRICES_HEADER_ROW] }
-  });
+  return cachedPricesTabId ?? 0;
 }
 
 async function getSheetContext() {
   const { sheets, drive } = await getClients();
   const spreadsheetId = await resolveSpreadsheetId(sheets, drive);
-  await ensurePricesSheet(sheets, spreadsheetId);
-  return { sheets, spreadsheetId };
+  const pricesTabId = await ensurePricesSheet(sheets, spreadsheetId);
+  return { sheets, spreadsheetId, pricesTabId };
 }
 
-function parseRow(row: Array<string | number>): Price | null {
+function parseRow(row: Array<string | number>, rowNumber: number): PriceWithRow | null {
   const date = String(row[0] ?? '').trim();
   if (!date) return null;
   return {
@@ -94,11 +102,12 @@ function parseRow(row: Array<string | number>): Price | null {
     medium: Number(row[2] ?? 0),
     large: Number(row[3] ?? 0),
     xl: Number(row[4] ?? 0),
-    j: Number(row[5] ?? 0)
+    j: Number(row[5] ?? 0),
+    rowNumber
   };
 }
 
-export async function listPrices(): Promise<Price[]> {
+async function listPricesWithRows(): Promise<PriceWithRow[]> {
   if (pricesCache && Date.now() - pricesCache.fetchedAt < CACHE_TTL_MS) {
     return pricesCache.prices;
   }
@@ -108,9 +117,16 @@ export async function listPrices(): Promise<Price[]> {
     range: `${PRICES_SHEET_NAME}!A2:F`
   });
   const rows = res.data.values ?? [];
-  const prices = rows.map(parseRow).filter((p): p is Price => p !== null);
+  const prices = rows
+    .map((row, index) => parseRow(row, index + 2))
+    .filter((p): p is PriceWithRow => p !== null);
   pricesCache = { prices, fetchedAt: Date.now() };
   return prices;
+}
+
+export async function listPrices(): Promise<Price[]> {
+  const prices = await listPricesWithRows();
+  return prices.map(({ rowNumber: _, ...rest }) => rest);
 }
 
 export async function addPrice(price: Price): Promise<void> {
@@ -122,6 +138,32 @@ export async function addPrice(price: Price): Promise<void> {
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
       values: [[price.effectiveDate, price.small, price.medium, price.large, price.xl, price.j]]
+    }
+  });
+  pricesCache = null;
+}
+
+export async function deletePriceForDate(effectiveDate: string): Promise<void> {
+  const { sheets, spreadsheetId, pricesTabId } = await getSheetContext();
+  const prices = await listPricesWithRows();
+  const existing = prices.find((p) => p.effectiveDate === effectiveDate);
+  if (!existing) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: pricesTabId,
+              dimension: 'ROWS',
+              startIndex: existing.rowNumber - 1,
+              endIndex: existing.rowNumber
+            }
+          }
+        }
+      ]
     }
   });
   pricesCache = null;
