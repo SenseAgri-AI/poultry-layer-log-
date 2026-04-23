@@ -11,6 +11,7 @@ export const HEADER_ROW = [
   'Damaged',
   'Mortality',
   'Notes',
+  'Avg Egg Weight (g)',
   'Water pH',
   'Egg Yolk Color',
   'Avg Hen Weight (kg)',

@@ -16,6 +16,7 @@ const emptyEntry = (date: string, houseId: string): Entry => ({
   damaged: 0,
   mortality: 0,
   notes: '',
+  avgEggWeightG: null,
   waterPh: null,
   eggYolkColor: null,
   avgHenWeightKg: null,
@@ -121,8 +122,8 @@ export default function EntryClient() {
       }
     });
     const optionalFields: Array<
-      'waterPh' | 'eggYolkColor' | 'avgHenWeightKg' | 'waterIntakeMl'
-    > = ['waterPh', 'eggYolkColor', 'avgHenWeightKg', 'waterIntakeMl'];
+      'avgEggWeightG' | 'waterPh' | 'eggYolkColor' | 'avgHenWeightKg' | 'waterIntakeMl'
+    > = ['avgEggWeightG', 'waterPh', 'eggYolkColor', 'avgHenWeightKg', 'waterIntakeMl'];
     optionalFields.forEach((field) => {
       const value = entry[field];
       if (value == null) return;
@@ -220,7 +221,7 @@ export default function EntryClient() {
   };
 
   const setOptionalNumberField = (
-    key: 'waterPh' | 'eggYolkColor' | 'avgHenWeightKg' | 'waterIntakeMl',
+    key: 'avgEggWeightG' | 'waterPh' | 'eggYolkColor' | 'avgHenWeightKg' | 'waterIntakeMl',
     value: string
   ) => {
     if (value.trim() === '') {
@@ -386,6 +387,17 @@ export default function EntryClient() {
           </div>
           <div style={{ gridColumn: '1 / -1', marginTop: '6px' }}>
             <strong className="section-title">Optional daily checks</strong>
+          </div>
+          <div>
+            <label htmlFor="avgEggWeightG">Avg egg weight (g)</label>
+            <input
+              id="avgEggWeightG"
+              type="number"
+              step={0.1}
+              value={form.avgEggWeightG ?? ''}
+              onChange={(event) => setOptionalNumberField('avgEggWeightG', event.target.value)}
+              placeholder="e.g. 58.5"
+            />
           </div>
           <div>
             <label htmlFor="waterPh">Water pH</label>

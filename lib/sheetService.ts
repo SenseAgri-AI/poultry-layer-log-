@@ -25,6 +25,7 @@ function toRow(entry: Entry): Array<string | number> {
     entry.damaged,
     entry.mortality,
     entry.notes,
+    entry.avgEggWeightG ?? '',
     entry.waterPh ?? '',
     entry.eggYolkColor ?? '',
     entry.avgHenWeightKg ?? '',
@@ -231,12 +232,13 @@ function parseRow(row: Array<string | number>, rowNumber: number): EntryWithRow 
     damaged: Number(row[7] ?? 0),
     mortality: Number(row[8] ?? 0),
     notes: String(row[9] ?? ''),
-    waterPh: row[10] === '' || row[10] == null ? null : Number(row[10]),
-    eggYolkColor: row[11] === '' || row[11] == null ? null : Number(row[11]),
-    avgHenWeightKg: row[12] === '' || row[12] == null ? null : Number(row[12]),
-    waterIntakeMl: row[13] === '' || row[13] == null ? null : Number(row[13]),
-    feedType: String(row[14] ?? ''),
-    waterAdditives: String(row[15] ?? ''),
+    avgEggWeightG: row[10] === '' || row[10] == null ? null : Number(row[10]),
+    waterPh: row[11] === '' || row[11] == null ? null : Number(row[11]),
+    eggYolkColor: row[12] === '' || row[12] == null ? null : Number(row[12]),
+    avgHenWeightKg: row[13] === '' || row[13] == null ? null : Number(row[13]),
+    waterIntakeMl: row[14] === '' || row[14] == null ? null : Number(row[14]),
+    feedType: String(row[15] ?? ''),
+    waterAdditives: String(row[16] ?? ''),
     rowNumber
   };
 }

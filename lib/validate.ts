@@ -7,6 +7,7 @@ const COUNT_FIELDS: Array<
     | 'date'
     | 'houseId'
     | 'notes'
+    | 'avgEggWeightG'
     | 'waterPh'
     | 'eggYolkColor'
     | 'avgHenWeightKg'
@@ -53,6 +54,7 @@ export function normalizeEntry(payload: Partial<Entry>): Entry {
     damaged: Number(payload.damaged ?? 0),
     mortality: Number(payload.mortality ?? 0),
     notes: String(payload.notes ?? ''),
+    avgEggWeightG: parseOptionalNumber(payload.avgEggWeightG),
     waterPh: parseOptionalNumber(payload.waterPh),
     eggYolkColor: parseOptionalNumber(payload.eggYolkColor),
     avgHenWeightKg: parseOptionalNumber(payload.avgHenWeightKg),
@@ -69,6 +71,7 @@ export function normalizeEntry(payload: Partial<Entry>): Entry {
   }
 
   const optionalNumericKeys: Array<keyof Entry> = [
+    'avgEggWeightG',
     'waterPh',
     'eggYolkColor',
     'avgHenWeightKg',

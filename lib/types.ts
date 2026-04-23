@@ -15,6 +15,7 @@ export type Entry = {
   waterIntakeMl: number | null;
   feedType: string;
   waterAdditives: string;
+  avgEggWeightG: number | null;
 };
 
 export type EntryWithRow = Entry & { rowNumber: number };

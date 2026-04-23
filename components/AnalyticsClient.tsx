@@ -374,8 +374,16 @@ export default function AnalyticsClient() {
             </p>
           </div>
           <div className="kpi">
-            <h3 className="metric-title">Avg egg weight (today)</h3>
+            <h3 className="metric-title">Est. avg weight (today)</h3>
             <p>{hasDailyData ? `${latestAvgWeight.toFixed(1)} g` : '-'}</p>
+          </div>
+          <div className="kpi">
+            <h3 className="metric-title">Actual avg weight (today)</h3>
+            <p>
+              {hasDailyData && latestEntry?.avgEggWeightG != null
+                ? `${latestEntry.avgEggWeightG.toFixed(1)} g`
+                : '-'}
+            </p>
           </div>
         </div>
       </section>
