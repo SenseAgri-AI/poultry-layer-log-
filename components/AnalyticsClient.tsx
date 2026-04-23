@@ -87,6 +87,7 @@ type ChartRow = Entry & {
   saleableLower: number;
   saleableGap: number;
   revenue: number;
+  cumulativeRevenue: number;
 };
 
 function priceForDate(prices: Price[], date: string): Price | null {
@@ -316,10 +317,12 @@ export default function AnalyticsClient() {
       7
     );
 
+    let runningRevenue = 0;
     return rows.map((row, index) => {
       const avgEggs = Number(eggsAvg[index].toFixed(1));
       const avgHdep = Number(hdepAvg[index].toFixed(2));
       const avgHhep = Number(hhepAvg[index].toFixed(2));
+      runningRevenue += row.revenue;
       return {
         ...row,
         totalEggsAvg7: avgEggs,
@@ -328,7 +331,8 @@ export default function AnalyticsClient() {
         eggsLower: Math.min(row.totalEggs, avgEggs),
         eggsGap: Math.abs(row.totalEggs - avgEggs),
         saleableLower: Math.min(row.totalEggs, row.saleableEggs),
-        saleableGap: Math.abs(row.totalEggs - row.saleableEggs)
+        saleableGap: Math.abs(row.totalEggs - row.saleableEggs),
+        cumulativeRevenue: Number(runningRevenue.toFixed(2))
       };
     });
   }, [filtered, hensByDate, cumulativeMortalityByDate, startingHens, startAgeDays, startDate, prices]);
@@ -830,17 +834,17 @@ export default function AnalyticsClient() {
       </section>
 
       <section className="section chart-card">
-        <h2 className="metric-title">Revenue per day (R)</h2>
+        <h2 className="metric-title">Cumulative revenue (R)</h2>
         <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer>
             <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
               <XAxis dataKey="date" />
-              <YAxis tickFormatter={(v) => `R${v}`} />
-              <Tooltip formatter={(value: number) => `R ${value.toFixed(2)}`} />
+              <YAxis tickFormatter={(v) => `R${Math.round(v).toLocaleString('en-ZA')}`} />
+              <Tooltip formatter={(value: number) => `R ${Math.round(value).toLocaleString('en-ZA')}`} />
               <Line
                 type="monotone"
-                dataKey="revenue"
-                name="Revenue (R)"
+                dataKey="cumulativeRevenue"
+                name="Cumulative revenue (R)"
                 stroke="#D4AF37"
                 strokeWidth={2}
                 dot={false}
