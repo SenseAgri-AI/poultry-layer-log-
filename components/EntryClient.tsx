@@ -6,7 +6,7 @@ import type { Entry, House, Price } from '@/lib/types';
 import { getClientTimezone, todayInTz } from '@/lib/date';
 
 type PriceForm = { small: number; medium: number; large: number; xl: number; j: number };
-const emptyPriceForm = (): PriceForm => ({ small: 0, medium: 0, large: 0, xl: 0, j: 0 });
+const defaultPriceForm = (): PriceForm => ({ small: 0.70, medium: 1.39, large: 1.65, xl: 1.80, j: 2.23 });
 
 const emptyEntry = (date: string, houseId: string): Entry => ({
   date,
@@ -48,7 +48,7 @@ export default function EntryClient() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [houses, setHouses] = useState<House[]>([]);
   const [loading, setLoading] = useState(true);
-  const [priceForm, setPriceForm] = useState<PriceForm>(emptyPriceForm());
+  const [priceForm, setPriceForm] = useState<PriceForm>(defaultPriceForm());
   const [savedPrices, setSavedPrices] = useState<PriceForm | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [status, setStatus] = useState<{ state: SyncState; message: string }>({
@@ -226,10 +226,12 @@ export default function EntryClient() {
 
     if (pricesChanged()) {
       try {
+        // First-ever save: use an early date so all historical entries get these prices
+        const effectiveDate = savedPrices === null ? '2020-01-01' : form.date;
         await fetch('/api/prices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ effectiveDate: form.date, ...priceForm })
+          body: JSON.stringify({ effectiveDate, ...priceForm })
         });
         setSavedPrices({ ...priceForm });
       } catch {
