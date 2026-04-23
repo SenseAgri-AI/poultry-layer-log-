@@ -839,7 +839,11 @@ export default function AnalyticsClient() {
           <ResponsiveContainer>
             <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
               <XAxis dataKey="date" />
-              <YAxis tickFormatter={(v) => `R${Math.round(v).toLocaleString('en-ZA')}`} />
+              <YAxis tickFormatter={(v: number) => {
+                if (v >= 1_000_000) return `R${(v / 1_000_000).toFixed(1)}M`;
+                if (v >= 1_000) return `R${Math.round(v / 1_000)}k`;
+                return `R${v}`;
+              }} width={55} />
               <Tooltip formatter={(value: number) => `R ${Math.round(value).toLocaleString('en-ZA')}`} />
               <Line
                 type="monotone"
