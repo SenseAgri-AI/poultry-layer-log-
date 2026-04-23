@@ -285,8 +285,14 @@ button.danger {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .kpi {
@@ -294,13 +300,11 @@ button.danger {
   border-radius: var(--radius);
   background: var(--surface);
   border: 0.5px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
   min-width: 0;
 }
 
 .kpi h3 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -315,9 +319,10 @@ button.danger {
   font-weight: 700;
   color: var(--navy);
   line-height: 1.2;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  margin-top: auto;
+}
+
+.kpi p.kpi-sm {
+  font-size: 1rem;
 }
 
 .chip-row {

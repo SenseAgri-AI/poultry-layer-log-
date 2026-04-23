@@ -435,11 +435,11 @@ export default function AnalyticsClient() {
           </div>
           <div className="kpi">
             <h3 className="metric-title">Revenue today</h3>
-            <p>{hasDailyData && hasPrices ? `R ${latestRevenue.toFixed(2)}` : '-'}</p>
+            <p className="kpi-sm">{hasDailyData && hasPrices ? `R ${latestRevenue.toFixed(2)}` : '-'}</p>
           </div>
           <div className="kpi">
             <h3 className="metric-title">Total revenue this cycle</h3>
-            <p>{hasPrices && cycleRevenue > 0 ? `R ${cycleRevenue.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</p>
+            <p className="kpi-sm">{hasPrices && cycleRevenue > 0 ? `R ${Math.round(cycleRevenue).toLocaleString('en-ZA')}` : '-'}</p>
           </div>
         </div>
       </section>
