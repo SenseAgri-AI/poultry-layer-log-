@@ -29,3 +29,12 @@ export type House = {
 };
 
 export type HouseWithRow = House & { rowNumber: number };
+
+export type Price = {
+  effectiveDate: string;
+  small: number;
+  medium: number;
+  large: number;
+  xl: number;
+  j: number;
+};

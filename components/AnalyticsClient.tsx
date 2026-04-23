@@ -14,7 +14,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import type { Entry, House } from '@/lib/types';
+import type { Entry, House, Price } from '@/lib/types';
 import { averageEggWeight, totalEggs, totalWeight } from '@/lib/eggMath';
 import { dateStringDaysAgo, daysBetween, getClientTimezone, todayInTz } from '@/lib/date';
 import { standardHdepForWeek, standardCumulativeMortalityForWeek } from '@/lib/henStandard';
@@ -86,12 +86,35 @@ type ChartRow = Entry & {
   eggsGap: number;
   saleableLower: number;
   saleableGap: number;
+  revenue: number;
 };
+
+function priceForDate(prices: Price[], date: string): Price | null {
+  const sorted = [...prices].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+  let result: Price | null = null;
+  for (const p of sorted) {
+    if (p.effectiveDate <= date) result = p;
+    else break;
+  }
+  return result;
+}
+
+function calcRevenue(entry: Entry, price: Price | null): number {
+  if (!price) return 0;
+  return (
+    entry.small * price.small +
+    entry.medium * price.medium +
+    entry.large * price.large +
+    entry.xl * price.xl +
+    entry.j * price.j
+  );
+}
 
 export default function AnalyticsClient() {
   const timezone = getClientTimezone();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [houses, setHouses] = useState<House[]>([]);
+  const [prices, setPrices] = useState<Price[]>([]);
   const [selectedHouseId, setSelectedHouseId] = useState('House 1');
   const [loading, setLoading] = useState(true);
   const [rangePreset, setRangePreset] = useState<'7' | '30' | '90' | 'custom'>('30');
@@ -133,6 +156,19 @@ export default function AnalyticsClient() {
       }
     };
     fetchHouses();
+  }, []);
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch('/api/prices');
+        const data = (await res.json()) as { prices?: Price[] };
+        setPrices(data.prices ?? []);
+      } catch {
+        setPrices([]);
+      }
+    };
+    fetchPrices();
   }, []);
 
   useEffect(() => {
@@ -210,6 +246,16 @@ export default function AnalyticsClient() {
     return sorted.length > 0 ? sorted[sorted.length - 1] : null;
   }, [houseEntries]);
 
+  const cycleRevenue = useMemo(() => {
+    return houseEntries.reduce((sum, entry) => {
+      const price = priceForDate(prices, entry.date);
+      return sum + calcRevenue(entry, price);
+    }, 0);
+  }, [houseEntries, prices]);
+
+  const latestRevenue = latestEntry ? calcRevenue(latestEntry, priceForDate(prices, latestEntry.date)) : 0;
+  const hasPrices = prices.length > 0;
+
   const latestDateLabel = latestEntry?.date ?? '';
   const latestLiveHens = latestEntry
     ? hensByDate.get(latestEntry.date) ?? Math.max(startingHens, 0)
@@ -236,6 +282,7 @@ export default function AnalyticsClient() {
         standardHdep = standardHdepForWeek(ageWeeks);
         standardCumulativeMortality = standardCumulativeMortalityForWeek(ageWeeks);
       }
+      const price = priceForDate(prices, entry.date);
       return {
         ...entry,
         avgWeight: Number(averageEggWeight(entry).toFixed(2)),
@@ -251,7 +298,8 @@ export default function AnalyticsClient() {
         totalEggsAvg7: 0,
         hdepAvg7: 0,
         hhepAvg7: 0,
-        standardHdep
+        standardHdep,
+        revenue: Number(calcRevenue(entry, price).toFixed(2))
       };
     });
 
@@ -283,7 +331,7 @@ export default function AnalyticsClient() {
         saleableGap: Math.abs(row.totalEggs - row.saleableEggs)
       };
     });
-  }, [filtered, hensByDate, cumulativeMortalityByDate, startingHens, startAgeDays, startDate]);
+  }, [filtered, hensByDate, cumulativeMortalityByDate, startingHens, startAgeDays, startDate, prices]);
 
   const eggsDomain = useMemo(
     () =>
@@ -384,6 +432,14 @@ export default function AnalyticsClient() {
                 ? `${latestEntry.avgEggWeightG.toFixed(1)} g`
                 : '-'}
             </p>
+          </div>
+          <div className="kpi">
+            <h3 className="metric-title">Revenue today</h3>
+            <p>{hasDailyData && hasPrices ? `R ${latestRevenue.toFixed(2)}` : '-'}</p>
+          </div>
+          <div className="kpi">
+            <h3 className="metric-title">Total revenue this cycle</h3>
+            <p>{hasPrices && cycleRevenue > 0 ? `R ${cycleRevenue.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</p>
           </div>
         </div>
       </section>
@@ -771,6 +827,30 @@ export default function AnalyticsClient() {
         <p className="footer-note">
           Cumulative deaths as % of starting flock. Actual above the standard line indicates higher than expected mortality.
         </p>
+      </section>
+
+      <section className="section chart-card">
+        <h2 className="metric-title">Revenue per day (R)</h2>
+        <div style={{ width: '100%', height: 260 }}>
+          <ResponsiveContainer>
+            <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+              <XAxis dataKey="date" />
+              <YAxis tickFormatter={(v) => `R${v}`} />
+              <Tooltip formatter={(value: number) => `R ${value.toFixed(2)}`} />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                name="Revenue (R)"
+                stroke="#D4AF37"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        {!hasPrices ? (
+          <p className="footer-note">Enter selling prices on the daily entry form to see revenue.</p>
+        ) : null}
       </section>
 
       <section className="section chart-card">

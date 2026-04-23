@@ -23,6 +23,9 @@ export const HEADER_ROW = [
 export const HOUSES_SHEET_NAME = 'Houses';
 export const HOUSES_HEADER_ROW = ['House ID', 'Name', 'Start Date', 'Start Age (days)', 'Starting Hens'];
 
+export const PRICES_SHEET_NAME = 'Prices';
+export const PRICES_HEADER_ROW = ['Effective Date', 'Small', 'Medium', 'Large', 'XL', 'Jumbo'];
+
 export const DRIVE_FOLDER_ID =
   process.env.GOOGLE_DRIVE_FOLDER_ID || '1iJlirSU4h0C-xADAl8ZnAF94yinnYFYU';
 

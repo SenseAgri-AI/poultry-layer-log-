@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import type { Entry, House } from '@/lib/types';
+import type { Entry, House, Price } from '@/lib/types';
 import { getClientTimezone, todayInTz } from '@/lib/date';
+
+type PriceForm = { small: number; medium: number; large: number; xl: number; j: number };
+const emptyPriceForm = (): PriceForm => ({ small: 0, medium: 0, large: 0, xl: 0, j: 0 });
 
 const emptyEntry = (date: string, houseId: string): Entry => ({
   date,
@@ -45,6 +48,8 @@ export default function EntryClient() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [houses, setHouses] = useState<House[]>([]);
   const [loading, setLoading] = useState(true);
+  const [priceForm, setPriceForm] = useState<PriceForm>(emptyPriceForm());
+  const [savedPrices, setSavedPrices] = useState<PriceForm | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [status, setStatus] = useState<{ state: SyncState; message: string }>({
     state: 'idle',
@@ -78,6 +83,22 @@ export default function EntryClient() {
 
   useEffect(() => {
     fetchEntries();
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch('/api/prices');
+        const data = (await res.json()) as { prices?: Price[] };
+        const prices = data.prices ?? [];
+        if (prices.length > 0) {
+          const latest = prices[prices.length - 1];
+          const pf: PriceForm = { small: latest.small, medium: latest.medium, large: latest.large, xl: latest.xl, j: latest.j };
+          setPriceForm(pf);
+          setSavedPrices(pf);
+        }
+      } catch {
+        // prices are optional, don't block the form
+      }
+    };
+    fetchPrices();
   }, []);
 
   useEffect(() => {
@@ -182,6 +203,11 @@ export default function EntryClient() {
     }
   };
 
+  const pricesChanged = () => {
+    if (!savedPrices) return priceForm.small > 0 || priceForm.medium > 0 || priceForm.large > 0 || priceForm.xl > 0 || priceForm.j > 0;
+    return priceForm.small !== savedPrices.small || priceForm.medium !== savedPrices.medium || priceForm.large !== savedPrices.large || priceForm.xl !== savedPrices.xl || priceForm.j !== savedPrices.j;
+  };
+
   const handleSave = async (resetAfter: boolean) => {
     const errors = validate(form);
     if (errors.length) {
@@ -196,6 +222,19 @@ export default function EntryClient() {
     if (existing && editingKey !== currentKey) {
       const ok = window.confirm('Update existing record?');
       if (!ok) return;
+    }
+
+    if (pricesChanged()) {
+      try {
+        await fetch('/api/prices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ effectiveDate: form.date, ...priceForm })
+        });
+        setSavedPrices({ ...priceForm });
+      } catch {
+        // non-blocking
+      }
     }
 
     const action: LastAction = { type: 'save', payload: form, resetAfter };
@@ -376,6 +415,26 @@ export default function EntryClient() {
               onChange={(event) => setNumberField('mortality', event.target.value)}
             />
           </div>
+          <div style={{ gridColumn: '1 / -1', marginTop: '6px' }}>
+            <strong className="section-title">Selling price per egg (R)</strong>
+          </div>
+          {(['small', 'medium', 'large', 'xl', 'j'] as const).map((size) => (
+            <div key={size}>
+              <label htmlFor={`price-${size}`}>{size === 'j' ? 'Jumbo' : size.charAt(0).toUpperCase() + size.slice(1)}</label>
+              <input
+                id={`price-${size}`}
+                type="number"
+                step={0.01}
+                min={0}
+                value={priceForm[size] === 0 ? '' : priceForm[size]}
+                placeholder="0.00"
+                onChange={(event) => {
+                  const val = event.target.value === '' ? 0 : Number(event.target.value);
+                  if (!Number.isNaN(val)) setPriceForm((prev) => ({ ...prev, [size]: val }));
+                }}
+              />
+            </div>
+          ))}
           <div style={{ gridColumn: '1 / -1' }}>
             <label htmlFor="notes">Notes</label>
             <textarea
