@@ -126,6 +126,18 @@ header.nav {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  align-items: end;
+}
+
+.form-grid > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-grid > div > input,
+.form-grid > div > select,
+.form-grid > div > textarea {
+  margin-top: auto;
 }
 
 label {
@@ -273,7 +285,7 @@ button.danger {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
   gap: 12px;
 }
 
@@ -282,22 +294,30 @@ button.danger {
   border-radius: var(--radius);
   background: var(--surface);
   border: 0.5px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .kpi h3 {
-  margin: 0 0 6px;
-  font-size: 0.75rem;
+  margin: 0 0 8px;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
+  line-height: 1.35;
 }
 
 .kpi p {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--navy);
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  margin-top: auto;
 }
 
 .chip-row {
