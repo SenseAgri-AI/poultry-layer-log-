@@ -1,6 +1,10 @@
 # Poultry Layer Daily Log
 
-A mobile-first Next.js app for logging daily poultry layer numbers. Data is stored in a Google Sheet inside the shared Drive folder and used for analytics.
+> **Superseded by Dashboard Farm Logs (2026-07); reference only.**
+>
+> The live daily logger is the Farm Logs section of [SenseAgri-AI/Dashboard](https://github.com/SenseAgri-AI/Dashboard), ported from this repo in July 2026. This repository is a reference clone and is not part of that build.
+
+The notes below describe this reference app: a mobile-first Next.js logger that stores daily poultry layer numbers in a Google Sheet inside a shared Drive folder. They are not the current Dashboard deployment.
 
 ## Features
 - Fast daily entry with validation and duplicate-date prompts.
@@ -67,6 +71,8 @@ npm run test
 ```
 
 ## Deployment notes
+
+Historical notes for running this reference app. Production logging is Dashboard Farm Logs, not a deploy of this repo.
 
 ### Vercel
 - Add environment variables in Vercel Project Settings.
